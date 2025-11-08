@@ -100,12 +100,27 @@ def download_references(output_dir, genome=1, completeness=90, host=4, metadata=
         host: Host filter (1=human, 2=rodent, 3=both, 4=no filter)
         metadata: Metadata filter (1=known location, 2=known date, 3=both, 4=no filter)
     """
+    output_dir = Path(output_dir)
+    fasta_dir = output_dir / 'FASTA'
+    
+    # Check if references already exist
+    l_segment_dir = fasta_dir / 'L_segment'
+    s_segment_dir = fasta_dir / 'S_segment'
+    
+    if l_segment_dir.exists() and s_segment_dir.exists():
+        l_files = list(l_segment_dir.glob('*.fasta')) + list(l_segment_dir.glob('*.fa'))
+        s_files = list(s_segment_dir.glob('*.fasta')) + list(s_segment_dir.glob('*.fa'))
+        if l_files and s_files:
+            logger.info(f"References already exist in {output_dir} ({len(l_files)} L-segment, {len(s_files)} S-segment files)")
+            logger.info("Skipping download. If you want to re-download, delete the references directory first.")
+            return
+    
     logger.info("Downloading Lassa virus references...")
     logger.info(f"Using parameters: genome={genome}, completeness={completeness}%, host={host}, metadata={metadata}")
     
     cmd = [
         'lassaseq',
-        '-o', output_dir,
+        '-o', str(output_dir),
         '--genome', str(genome),
         '--host', str(host),
         '--metadata', str(metadata)
@@ -118,7 +133,17 @@ def download_references(output_dir, genome=1, completeness=90, host=4, metadata=
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         logger.info("Successfully downloaded references")
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error downloading references: {e.stderr}")
+        error_msg = e.stderr if e.stderr else e.stdout if e.stdout else str(e)
+        logger.error(f"Error downloading references: {error_msg}")
+        # Check if it's a network error and references might already exist
+        if "Network is unreachable" in error_msg or "urlopen error" in error_msg:
+            if l_segment_dir.exists() and s_segment_dir.exists():
+                l_files = list(l_segment_dir.glob('*.fasta')) + list(l_segment_dir.glob('*.fa'))
+                s_files = list(s_segment_dir.glob('*.fasta')) + list(s_segment_dir.glob('*.fa'))
+                if l_files and s_files:
+                    logger.warning("Network error occurred, but existing references found. Continuing with existing references.")
+                    return
+        logger.error("Cannot continue without references. Please check your network connection or provide existing references.")
         sys.exit(1)
 
 def get_reference_info(ref_file):
@@ -325,8 +350,15 @@ def rarefy_all_samples(samples, input_dir, output_dir, n_reads=10000):
         
         # Create rarefied FASTQ
         rarefied_file = sample_dir / f"{sample}_rarefied.fastq.gz"
-        rarefy_reads(input_file, rarefied_file, n_reads)
-        logger.info(f"Created rarefied FASTQ with {n_reads:,} reads")
+        
+        # Only rarefy if we have more reads than requested, otherwise just copy
+        if total_reads >= n_reads:
+            rarefy_reads(input_file, rarefied_file, n_reads)
+            logger.info(f"Created rarefied FASTQ with {n_reads:,} reads")
+        else:
+            # Copy the file if we have fewer reads than requested
+            shutil.copy2(input_file, rarefied_file)
+            logger.info(f"Sample has fewer reads than requested ({total_reads:,} < {n_reads:,}), using all {total_reads:,} reads")
         
         rarefied_files[sample] = {
             'rarefied_file': rarefied_file,
