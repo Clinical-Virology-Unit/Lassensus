@@ -90,6 +90,12 @@ lassensus --input_dir /path/to/input --output_dir /path/to/output [options]
   - 3: Must have both location and date metadata
   - 4: No metadata filtering
 
+- `--ref_reads`: Number of reads to rarefy for reference selection (default: 10,000)
+  - During reference selection, samples are rarefied to this number of reads to speed up the mapping process
+  - This is separate from `--max_reads` used in consensus generation
+  - Useful when samples have many reads but few Lassa virus reads - you can increase this value to use more reads for reference selection
+  - If a sample has fewer reads than this value, all reads will be used
+
 #### Consensus Generation Parameters
 
 - `--max_reads`: Maximum number of reads to use for consensus generation (default: 1,000,000)
@@ -129,6 +135,10 @@ lassensus --input_dir /path/to/input --output_dir /path/to/output \
     --min_depth 20 \
     --min_quality 20 \
     --majority_threshold 0.5
+
+# Increase reference selection reads for samples with many reads but few Lassa reads
+lassensus --input_dir /path/to/input --output_dir /path/to/output \
+    --ref_reads 50000
 ```
 
 ## Output

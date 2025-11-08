@@ -335,7 +335,7 @@ def rarefy_all_samples(samples, input_dir, output_dir, n_reads=10000):
     
     return rarefied_files
 
-def process_sample(sample, rarefied_info, references_dir, output_dir, min_identity):
+def process_sample(sample, rarefied_info, references_dir, output_dir, min_identity, rarefaction_reads):
     """Process a single sample to find the best reference."""
     logger.info(f"\nProcessing sample: {sample}")
     
@@ -347,7 +347,7 @@ def process_sample(sample, rarefied_info, references_dir, output_dir, min_identi
     )
     
     # Save results including total read count
-    save_results(sample, best_refs, best_stats, segment_stats, rarefied_info['total_reads'], output_dir)
+    save_results(sample, best_refs, best_stats, segment_stats, rarefied_info['total_reads'], output_dir, rarefaction_reads)
     
     return best_refs
 
@@ -362,12 +362,12 @@ def rarefy_reads(input_file, output_file, n_reads):
         logger.error(f"Error rarefying reads: {e}")
         sys.exit(1)
 
-def save_results(sample, best_refs, best_stats, segment_stats, total_reads, output_dir):
+def save_results(sample, best_refs, best_stats, segment_stats, total_reads, output_dir, rarefaction_reads):
     """Save mapping statistics and best reference to JSON file and save best reference sequences as FASTA."""
     results = {
         'sample': sample,
         'total_reads': total_reads,
-        'rarefied_reads': 10000,
+        'rarefied_reads': rarefaction_reads,
         'best_references': best_refs,
         'best_stats': best_stats,
         'segment_stats': segment_stats
@@ -476,6 +476,8 @@ def main(args=None):
             help='Host filter: 1=human, 2=rodent, 3=both, 4=no filter (default: 4)')
         parser.add_argument('--metadata', type=int, choices=[1,2,3,4], default=4,
             help='Metadata filter: 1=known location, 2=known date, 3=both, 4=no filter (default: 4)')
+        parser.add_argument('--ref_reads', type=int, default=10000,
+            help='Number of reads to rarefy for reference selection step (default: 10,000). This is separate from --max_reads used in consensus generation.')
         args = parser.parse_args()
     
     # Convert input and output directories to Path objects
@@ -518,7 +520,8 @@ def main(args=None):
     logger.info(f"Minimum identity threshold: {args.min_identity}%")
     
     # First, rarefy all samples
-    rarefied_files = rarefy_all_samples(samples, input_dir, output_dir)
+    rarefaction_reads = getattr(args, 'ref_reads', 10000)
+    rarefied_files = rarefy_all_samples(samples, input_dir, output_dir, n_reads=rarefaction_reads)
     
     # Download references once for all samples
     logger.info("\nDownloading references for all samples...")
@@ -538,7 +541,8 @@ def main(args=None):
             rarefied_files[sample],
             dirs['references'],
             output_dir,
-            args.min_identity
+            args.min_identity,
+            rarefaction_reads
         )
         for segment in ['L', 'S']:
             if best_refs[segment]:

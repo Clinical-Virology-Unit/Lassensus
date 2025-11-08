@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--min_depth', type=int, default=50, help='Minimum depth for consensus calling (default: 50)')
     parser.add_argument('--min_quality', type=int, default=30, help='Minimum quality score for consensus calling (default: 30)')
     parser.add_argument("--max_reads", type=int, default=1000000, help="Maximum number of reads to use for consensus generation (default: 1,000,000)")
+    parser.add_argument('--ref_reads', type=int, default=10000, help='Number of reads to rarefy for reference selection step (default: 10,000). This is separate from --max_reads used in consensus generation.')
     parser.add_argument('--majority_threshold', type=float, default=0.7, help='Majority rule threshold (default: 0.7)')
     
     # Optional subcommand for future expansion
@@ -43,6 +44,7 @@ def main():
     ref_parser.add_argument('--completeness', type=int, default=90, help='Minimum sequence completeness (1-100 percent)')
     ref_parser.add_argument('--host', type=int, default=4, help='Host filter (1=Human, 2=Rodent, 3=Both, 4=None)')
     ref_parser.add_argument('--metadata', type=int, default=4, help='Metadata filter (1=Location, 2=Date, 3=Both, 4=None)')
+    ref_parser.add_argument('--ref_reads', type=int, default=10000, help='Number of reads to rarefy for reference selection step (default: 10,000). This is separate from --max_reads used in consensus generation.')
     
     # Consensus generation subcommand
     consensus_parser = subparsers.add_parser('consensus', help='Generate consensus sequences only')
